@@ -3,6 +3,7 @@ from pandas import DataFrame
 from cleansting import cleansting
 # Math
 import numpy as np
+import pandas as pd
 
 
 class TestCleanSting(object):
@@ -97,7 +98,6 @@ class TestCleanSting(object):
         expected = 40000.0
         msg = f'We expected {expected}, but We get {actual}'
         assert actual > expected, msg
-
 
     def test_get_m2_price_error_msg(self, setup):
         """Test the correct creation of the Series m2 price"""
@@ -301,3 +301,31 @@ class TestCleanSting(object):
 
         msg = f'We expected {expected}, but We get {actual}'
         assert actual == expected, msg
+
+    def test_get_numeric_columns(self, setup):
+        """Test the correct creation of list of columns that contain only the numeric features. """
+        cl = setup
+        cl.json_to_pd()
+        cl.drop_nan('main', 'habitaciones', 'banos', 'autos', 'colonia')
+        cl.change_dtype('main', columns=('m2_terreno', 'm2_const', 'total_habitaciones'), astype='float16')
+        cl.change_dtype('main', columns=('habitaciones', 'banos', 'autos'), astype='int8')
+        numeric_columns = cl.get_numeric_columns()
+        df = cl.df['main'].loc[:, numeric_columns]
+        actual = df.dtypes.apply(lambda x: x == np.float16 or x == np.float64 or x == np.int8).all()
+        msg = f'We expected {True}, but We get {actual}'
+        assert actual, msg
+
+    def test_get_categories_columns(self, setup):
+        """Test the correct creation of list of columns that contain only the numeric features. """
+        cl = setup
+        cl.json_to_pd()
+        cl.drop_nan('main', 'habitaciones', 'banos', 'autos', 'colonia')
+        cl.change_dtype('main',
+                        columns=(
+                            'colonia', 'tipo_oferta', 'tipo_inmueble', 'sub_category', 'ciudad', 'estado', 'agent'),
+                        astype='category')
+        categories_columns = cl.get_categories_columns()
+        df = cl.df['main'].loc[:, categories_columns]
+        actual = df.dtypes.apply(lambda x: x == 'category').all()
+        msg = f'We expected {True}, but We get {actual}'
+        assert actual, msg

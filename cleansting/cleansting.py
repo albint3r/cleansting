@@ -21,22 +21,46 @@ class CleanSting:
     def fit_json(self, *args: str) -> None:
         """Fit the file path(s) of the json files.
 
-        :param *args: str: 
+        Parameters
+        ----------
+        *args: str :
+            Json location file path. This could be variable.
 
+        Returns
+        -------
+        None
         """
         self.json_files = args
 
     def json_to_pd(self) -> None:
-        """Concatenate all json files into one and drop duplicates."""
+        """Create a new DataFrame call it 'main'.
+
+        This is the result of the concatenation of a list of Json Paths. The result will drop all the
+        duplicate SKUs of the DataFrame and stored inside the self.df dict.
+
+        Returns
+        -------
+        None
+        """
         lst_df = [pd.read_json(file) for file in self.json_files]
         self.df['main'] = pd.concat(lst_df).drop_duplicates(subset=['sku'])
 
     def nan_resume(self, tb_name: str = 'main', normalize: bool = True) -> Series:
-        """Create a Resumen of the nan Values inside any column of the DataFrame.
+        """Create a Resumen Serie of the NaN Values in all the columns of the DataFrame.
 
-        :param tb_name: str:  (Default value = 'main')
-        :param normalize: bool:  (Default value = True)
+        Parameters
+        ----------
+        tb_name : str: (Default value = 'main')
+          This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+          the method.
 
+        normalize : bool:  (Default value = True)
+            If this Value is True it will return a Resume Table with percentage. If is False it will
+            return the count of the NaN values.
+
+        Returns
+        -------
+        Series
         """
         df = self.df[tb_name]
         if not normalize:
@@ -49,11 +73,20 @@ class CleanSting:
         return null_cols_resume
 
     def drop_nan(self, tb_name: str = 'main', *args: str):
-        """Remove all the Nan Values in the DataFrame
+        """Remove the NaN and Inf Values of the Columns Selected of the DataFrame.
 
-        :param tb_name: str:  (Default value = 'main')
-        :param *args: str:
+        Parameters
+        ----------
+        tb_name : str:  (Default value = 'main')
+            This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+            the method.
 
+        *args: str :
+            The name of the columns you want to drop the NaN and Inf Values.
+
+        Returns
+        -------
+        self
         """
         df = self.df[tb_name].dropna(subset=args)
         self.df[tb_name] = df[df != np.inf]
@@ -62,8 +95,15 @@ class CleanSting:
     def get_m2_price(self, tb_name: str = 'main') -> Series:
         """Create a Serie with the value of the m2 price
 
-        :param tb_name: str:  (Default value = 'main')
+        Parameters
+        ----------
+        tb_name : str:  (Default value = 'main')
+            This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+            the method.
 
+        Returns
+        -------
+        Series
         """
 
         df = self.df[tb_name]
@@ -84,8 +124,15 @@ class CleanSting:
     def get_m2_const_price(self, tb_name: str = 'main') -> Series:
         """Create a Serie with the value of the m2 construction price
 
-        :param tb_name: str:  (Default value = 'main')
+        Parameters
+        ----------
+        tb_name : str:  (Default value = 'main')
+            This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+            the method.
 
+        Returns
+        -------
+        Series
         """
 
         df = self.df[tb_name]
@@ -100,8 +147,18 @@ class CleanSting:
     def get_abs_price(self, tb_name: str = 'main') -> Series:
         """Create a Serie with the value of the Absolute price (m2 + m2 const).
 
-        :param tb_name: str:  (Default value = 'main')
+        This Serie Only apply for 'House', because it uses the land size and the Departments don't have
+        that feature value. In the Case of apartments is better to compered by the m2_const_price.
 
+        Parameters
+        ----------
+        tb_name : str:  (Default value = 'main')
+            This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+            the method.
+
+        Returns
+        -------
+        Series
         """
 
         df = self.df[tb_name]
@@ -119,7 +176,22 @@ class CleanSting:
                 f'Series mean is inf. Please clean inf values before use {self.get_m2_price.__name__}.')
 
     def set_sector_inmo(self, tb_name: str = 'main'):
-        """ """
+        """Create a new Column call it 'sector_inmo' that contains the categories of the listings
+        economical sectors.
+
+        The categories are: 'Interés Social', 'Interés Medio', 'Residencial', 'Residencial Plus', 'Premium'.
+        Depends on the type of offer (sell or rent) and the price that the label would be selected.
+
+        Parameters
+        ----------
+        tb_name : str:  (Default value = 'main')
+            This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+            the method.
+
+        Returns
+        -------
+        self
+        """
         df = self.df[tb_name]
         # Create Sector Inmobiliario Column
         categories = ['Interés Social', 'Interés Medio', 'Residencial', 'Residencial Plus', 'Premium']
@@ -154,7 +226,24 @@ class CleanSting:
         return self
 
     def set_amenidades(self, tb_name: str = 'main', column: str = 'amenidades' ) -> tuple[DataFrame, list[str]]:
-        """Split the amenities and assing to a new column in the dataframe"""
+        """Create N number of new Columns of the total amenities in the column 'amenidades' lists.
+
+        This column contains list of amenities, and it is variable. The program don't know how many new columns
+        will be created. So this proces is O(n2).
+
+        Parameters
+        ----------
+        tb_name : str:  (Default value = 'main')
+            This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+            the method.
+        column: str : (Default value = 'amenidades')
+            The column Name that contain the Raw List of amenities.
+
+        Returns
+        -------
+        tuple[DataFrame, list[str]:
+            The result is a DataFrame with all the new columns and a list of the name of the columns.
+        """
         df = self.df[tb_name].reset_index()
         df.index += 1
 
@@ -179,9 +268,18 @@ class CleanSting:
     def change_dtype(self, tb_name: str = 'main', **kwargs: Union[tuple, str]) -> DataFrame:
         """Change the dtypes from columns DataFrame.
 
-        :param tb_name: str:  (Default value = 'main')
-        :param **kwargs: Union[tuple, str]:
+        Parameters
+        ----------
+        tb_name : str:  (Default value = 'main')
+            This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+            the method.
+        **kwargs: Union[tuple, str] :
+            Expect a parameter call it 'columns': This would contain a tuple of the name of the columns that
+            would be change it the dtype. Also expect the parameter 'astype' that contain the dtype conversion.
 
+        Returns
+        -------
+        DataFrame
         """
         try:
             # Change Type
@@ -199,11 +297,19 @@ class CleanSting:
         
         This subset would be filtered by the type of the listing and offer. E.g: 'Sell' and 'House'.
 
-        :param tb_name: str:  (Default value = 'main')
-        :param **kwargs: str:
-            The parameters are the name of the features (columns) and the argumentes are the Value you want to filter.
-            E.g: tipo_inmueble='Casa', tipo_oferta='Venta', colonia='Puerta de Hierro'
+        Parameters
+        ----------
+        tb_name : str:  (Default value = 'main')
+            This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+            the method.
 
+        **kwargs: str:
+            Expect as parameter the name of the column and as argument the value inside the row you want to
+            filter the data. This method only return equal results.
+
+        Returns
+        -------
+        DataFrame
         """
         df = self.df[tb_name]
         # Select listing type and Offer.
@@ -227,9 +333,17 @@ class CleanSting:
         above the 95% quantile. And for the negative skew data, it would remove principally the negative dataset
         below the 5% quantile.
 
-        :param tb_name: str:  (Default value = 'main')
-        :param **kwargs: tuple:
+        Parameters
+        ----------
+        tb_name : str:  (Default value = 'main')
+            This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+            the method.
+        **kwargs: tuple :
+            Expected as parameter 'columns' and as argument a 'tuple' with the name of the columns names.
 
+        Returns
+        -------
+        DataFrame
         """
         df = self.df[tb_name]
         columns = kwargs.get('columns')
@@ -258,3 +372,33 @@ class CleanSting:
 
         self.df[tb_name] = df
         return self.df[tb_name]
+
+    def get_numeric_columns(self, tb_name: str = 'main') -> list:
+        """Return a List of Columns that have numeric data.
+
+        tb_name : str:  (Default value = 'main')
+            This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+            the method.
+
+        Returns
+        -------
+        list
+        """
+        df = self.df[tb_name]
+        numeric_columns = df.select_dtypes(include = [np.number]).columns
+        return numeric_columns
+
+    def get_categories_columns(self, tb_name: str = 'main') -> list:
+        """Return a List of Columns that have Category data.
+
+        tb_name : str:  (Default value = 'main')
+            This is Key Value Name in the self.df dictionary that contains the DataFrame you want to apply
+            the method.
+
+        Returns
+        -------
+        list
+        """
+        df = self.df[tb_name]
+        categories_columns = df.select_dtypes(include = 'category').columns
+        return categories_columns
