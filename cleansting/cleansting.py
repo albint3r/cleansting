@@ -1,4 +1,5 @@
 # Type imports
+from array import array
 from typing import Union
 
 import sqlalchemy
@@ -9,14 +10,54 @@ from dataclasses import dataclass, field
 import pandas as pd
 import numpy as np
 
+from cleansting.express import express_work_setup, colonies_encoder
+
 
 @dataclass
 class CleanSting:
     """This class clean and manipulate the data of the Listings in Perfect Deals app"""
 
+    COLUMNS = ['price', 'm2_const', 'm2_terreno', 'habitaciones', 'banos', 'autos', 'endocer_colonia']
+
     json_files: tuple[str] = field(init=False, default_factory=list, repr=False)
     db: sqlalchemy = field(init=False, repr=False)
     df: dict[str:DataFrame] = field(init=False, repr=True, default_factory=dict)
+    X: array = field(init=False)
+    y: array = field(init=False)
+
+    def setup_model_data(self, *args, **kwargs):
+        # Add Json
+        self.fit_json(*args)
+        # Clean Information and add new columns
+        self.factory()
+        # Filter by
+        filter_by = kwargs.get('filter_by', {'tipo_oferta': 'Venta', 'tipo_inmueble': 'Casa'})
+        self.filter_by('main', **filter_by)
+        # Create the ML Features
+        self.set_features()
+        # Create the ML Target
+        self.set_target()
+
+        return self
+
+    def factory(self):
+        self.json_to_pd()
+        self.df['main'] = express_work_setup(self.df['main'])
+        self.df['main'] = colonies_encoder(self.df['main'])
+        return self.df['main']
+
+    def set_features(self, tb_name: str = 'filtered'):
+        """Create the Features Variables to train the ML Model"""
+        listing_type = self.df[tb_name].tipo_inmueble.unique()
+
+        if listing_type == 'Casa':
+            self.X = self.df[tb_name].loc[:, self.COLUMNS].drop(columns=['price']).values
+        elif listing_type == 'Departamento':
+            self.X = self.df[tb_name].loc[:, self.COLUMNS].drop(columns=['price', 'm2_terreno']).values
+
+    def set_target(self, tb_name: str = 'filtered'):
+        """Create the Features Variables to train the ML Model"""
+        self.y = self.df[tb_name].price.values
 
     def fit_json(self, *args: str) -> None:
         """Fit the file path(s) of the json files.
@@ -225,7 +266,7 @@ class CleanSting:
 
         return self
 
-    def set_amenidades(self, tb_name: str = 'main', column: str = 'amenidades' ) -> tuple[DataFrame, list[str]]:
+    def set_amenidades(self, tb_name: str = 'main', column: str = 'amenidades') -> tuple[DataFrame, list[str]]:
         """Create N number of new Columns of the total amenities in the column 'amenidades' lists.
 
         This column contains list of amenities, and it is variable. The program don't know how many new columns
@@ -385,7 +426,7 @@ class CleanSting:
         list
         """
         df = self.df[tb_name]
-        numeric_columns = df.select_dtypes(include = [np.number]).columns
+        numeric_columns = df.select_dtypes(include=[np.number]).columns
         return numeric_columns
 
     def get_categories_columns(self, tb_name: str = 'main') -> list:
@@ -400,5 +441,5 @@ class CleanSting:
         list
         """
         df = self.df[tb_name]
-        categories_columns = df.select_dtypes(include = 'category').columns
+        categories_columns = df.select_dtypes(include='category').columns
         return categories_columns
